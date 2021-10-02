@@ -244,7 +244,7 @@ jobs:
       - uses: actions/download-artifact@0ede0875b5db9a2824878bbbbe3d758a75eb8268  # pin@v2
         name: ${{ matrix.PLATFORM }}-release
       - name: 'Upload release'
-        uses: svenstaro/upload-release-action@483c1e56f95e88835747b1c7c60581215016cbf2  # pin@v2
+        uses: svenstaro/upload-release-action@v2  # pin@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref }}
