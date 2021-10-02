@@ -13,10 +13,8 @@ cpython_build = Dir("cpython_build")
 
 
 env["bits"] = "64"
-env[
-    "godot_default_binary_url"
-] = "https://downloads.tuxfamily.org/godotengine/3.2.1/Godot_v3.2.1-stable_osx.64.zip"
-env["godot_binary_zip_path"] = "Godot.app/Contents/MacOS/Godot"
+env["godot_binary_download_platform"] = "osx.64"
+env["godot_binary_download_zip_path"] = "Godot.app/Contents/MacOS/Godot"
 env["cpython_build"] = cpython_build
 env["cpython_build_dir"] = cpython_build
 env["DIST_SITE_PACKAGES"] = Dir(f"{env['DIST_PLATFORM']}/lib/python3.8/site-packages")
@@ -36,7 +34,7 @@ env.AppendUnique(LINKFLAGS=[f"-L{cpython_build.abspath}/lib"])
 ### Fetch Python prebuild ###
 
 
-CPYTHON_PREBUILD_URL = "https://github.com/indygreg/python-build-standalone/releases/download/20200517/cpython-3.8.3-x86_64-apple-darwin-pgo-20200518T0141.tar.zst"
+CPYTHON_PREBUILD_URL = "https://github.com/indygreg/python-build-standalone/releases/download/20200823/cpython-3.8.5-x86_64-apple-darwin-pgo-20200823T2228.tar.zst"
 cpython_prebuild_archive = env.Download(
     target=File(CPYTHON_PREBUILD_URL.rsplit("/", 1)[1]), url=CPYTHON_PREBUILD_URL
 )

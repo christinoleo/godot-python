@@ -42,6 +42,8 @@ from godot.builtins cimport Array, Dictionary
 import inspect
 import traceback
 
+from godot.tags import ExportedField, SignalField
+
 
 cdef inline godot_pluginscript_script_manifest _build_empty_script_manifest():
     cdef godot_pluginscript_script_manifest manifest
@@ -94,6 +96,14 @@ cdef Dictionary _build_property_info(object prop):
     propinfo["rset_mode"] = prop.rpc
     return propinfo
 
+cdef inline object is_method(object meth):
+    if inspect.isfunction(meth):
+        return True
+
+    if 'cython_function' in type(meth).__name__:
+        return True
+
+    return False
 
 cdef godot_pluginscript_script_manifest _build_script_manifest(object cls):
     cdef godot_pluginscript_script_manifest manifest
@@ -117,23 +127,18 @@ cdef godot_pluginscript_script_manifest _build_script_manifest(object cls):
         pyobj_to_godot_string_name(base, &manifest.base)
 
     methods = Array()
-    # TODO: include inherited in exposed methods ? Expose Godot base class' ones ?
-    # for methname in vars(cls):
-    for methname in dir(cls):
-        meth = getattr(cls, methname)
-        if not inspect.isfunction(meth) or meth.__name__.startswith("__"):
-            continue
-        methods.append(_build_method_info(meth, methname))
-    gdapi10.godot_array_new_copy(&manifest.methods, &methods._gd_data)
-
     signals = Array()
-    for signal in cls.__signals.values():
-        signals.append(_build_signal_info(signal))
-    gdapi10.godot_array_new_copy(&manifest.signals, &signals._gd_data)
-
     properties = Array()
-    for prop in cls.__exported.values():
-        properties.append(_build_property_info(prop))
+    for k, v in cls.__exported.items():
+        if isinstance(v, ExportedField):
+            properties.append(_build_property_info(v))
+        elif isinstance(v, SignalField):
+            signals.append(_build_signal_info(v))
+        else:
+            assert is_method(v)
+            methods.append(_build_method_info(v, k))
+    gdapi10.godot_array_new_copy(&manifest.methods, &methods._gd_data)
+    gdapi10.godot_array_new_copy(&manifest.signals, &signals._gd_data)
     gdapi10.godot_array_new_copy(&manifest.properties, &properties._gd_data)
 
     return manifest
@@ -169,7 +174,7 @@ cdef api godot_pluginscript_script_manifest pythonscript_script_init(
     # TODO: possible bug if res:// is not part of PYTHONPATH
     # Remove `res://`, `.py` and replace / by .
     modname = path[6:].rsplit(".", 1)[0].replace("/", ".")
-    
+
     is_reload = modname in sys.modules
     if is_reload:
         # Reloading is done in two steps: remove the exported class,
@@ -204,7 +209,7 @@ cdef api godot_pluginscript_script_manifest pythonscript_script_init(
         )
         r_error[0] = GODOT_ERR_PARSE_ERROR
         return _build_empty_script_manifest()
-    
+
     if is_reload:
         # During reloading, Godot calls the new class init before the old class finish (so
         # `pythonscript_script_finish` is going to be called after this function returns).
@@ -222,5 +227,6 @@ cdef api void pythonscript_script_finish(
 ) with gil:
     cdef object cls = <object>p_data
     if get_pythonscript_verbose():
-        print(f"Destroying python script {cls.__name__}")
+        # Using print here will cause a crash on editor/game shutdown
+        sys.__stdout__.write(f"Destroying python script {cls.__name__}\n")
     destroy_exposed_class(cls)
